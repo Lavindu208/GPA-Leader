@@ -1,25 +1,49 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { BookPlus, CalendarPlus, FilePlus2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Header } from '@/components/dashboard/header'
-import { Sidebar } from '@/components/dashboard/sidebar'
-import { StatCards } from '@/components/dashboard/stat-cards'
-import { GpaChart } from '@/components/dashboard/gpa-chart'
-import { DegreeProgress } from '@/components/dashboard/degree-progress'
-import { CoursesTable } from '@/components/dashboard/courses-table'
-import { Upcoming } from '@/components/dashboard/upcoming'
-import { Attendance } from '@/components/dashboard/attendance'
-import { GpaGoal } from '@/components/dashboard/gpa-goal'
-import { Achievements } from '@/components/dashboard/achievements'
-import { Leaderboard } from '@/components/dashboard/leaderboard'
-import { DashboardModals, type ModalKey } from '@/components/dashboard/modals'
-import { student } from '@/lib/dashboard-data'
+import { useState, useEffect } from "react";
+import { BookPlus, CalendarPlus, FilePlus2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Header } from "@/components/dashboard/header";
+import { Sidebar } from "@/components/dashboard/sidebar";
+import { StatCards } from "@/components/dashboard/stat-cards";
+import { GpaChart } from "@/components/dashboard/gpa-chart";
+import { DegreeProgress } from "@/components/dashboard/degree-progress";
+import { CoursesTable } from "@/components/dashboard/courses-table";
+import { Upcoming } from "@/components/dashboard/upcoming";
+import { Attendance } from "@/components/dashboard/attendance";
+import { GpaGoal } from "@/components/dashboard/gpa-goal";
+import { Achievements } from "@/components/dashboard/achievements";
+import { Leaderboard } from "@/components/dashboard/leaderboard";
+import { DashboardModals, type ModalKey } from "@/components/dashboard/modals";
+import { onAuthStateChanged } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
 
 export default function DashboardPage() {
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [modal, setModal] = useState<ModalKey>(null)
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [modal, setModal] = useState<ModalKey>(null);
+  const [userName, setUserName] = useState<string>("Student");
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        try {
+          const docRef = doc(db, "profiles", user.uid);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            const profileName = docSnap.data().name;
+            // Show the first name if available
+            setUserName(profileName ? profileName.split(" ")[0] : "Student");
+          }
+        } catch (err) {
+          console.error("Failed to fetch user name:", err);
+        }
+      } else {
+        setUserName("Student");
+      }
+    });
+    return () => unsubscribe();
+  }, []);
 
   return (
     <div className="min-h-screen bg-background">
@@ -32,22 +56,31 @@ export default function DashboardPage() {
           <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-xl font-semibold tracking-tight text-foreground text-balance">
-                Welcome back, {student.name.split('.').pop()?.trim() ?? 'Student'}
+                Welcome back, {userName}
               </h1>
               <p className="mt-1 text-sm text-muted-foreground">
-                Here&apos;s how your academic performance is tracking this semester.
+                Here&apos;s how your academic performance is tracking this
+                semester.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" onClick={() => setModal('course')}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setModal("course")}
+              >
                 <BookPlus />
                 Add course
               </Button>
-              <Button variant="outline" size="sm" onClick={() => setModal('assignment')}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setModal("assignment")}
+              >
                 <FilePlus2 />
                 Add assignment
               </Button>
-              <Button size="sm" onClick={() => setModal('exam')}>
+              <Button size="sm" onClick={() => setModal("exam")}>
                 <CalendarPlus />
                 Add exam
               </Button>
@@ -64,14 +97,14 @@ export default function DashboardPage() {
               <DegreeProgress />
 
               <div className="lg:col-span-2">
-                <CoursesTable onAddCourse={() => setModal('course')} />
+                <CoursesTable onAddCourse={() => setModal("course")} />
               </div>
-              <Upcoming onAddAssignment={() => setModal('assignment')} />
+              <Upcoming onAddAssignment={() => setModal("assignment")} />
 
               <Attendance />
               <GpaGoal
-                onSetTarget={() => setModal('target')}
-                onCalculate={() => setModal('calculate')}
+                onSetTarget={() => setModal("target")}
+                onCalculate={() => setModal("calculate")}
               />
               <Leaderboard />
 
@@ -85,5 +118,5 @@ export default function DashboardPage() {
 
       <DashboardModals active={modal} onClose={() => setModal(null)} />
     </div>
-  )
+  );
 }

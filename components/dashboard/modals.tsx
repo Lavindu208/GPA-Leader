@@ -1,29 +1,49 @@
-'use client'
+"use client";
 
-import { useState, type FormEvent } from 'react'
-import { Plus, Trash2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input, Label, Select } from '@/components/ui/field'
-import { Modal } from '@/components/ui/modal'
+import { useState, type FormEvent } from "react";
+import { Plus, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input, Label, Select } from "@/components/ui/field";
+import { Modal } from "@/components/ui/modal";
+import { collection, addDoc } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
 import {
   classification,
   computeGpa,
   LETTER_GRADES,
   type Course,
-} from '@/lib/gpa'
+} from "@/lib/gpa";
 
-export type ModalKey = 'course' | 'assignment' | 'exam' | 'target' | 'calculate' | null
+export type ModalKey =
+  | "course"
+  | "assignment"
+  | "exam"
+  | "target"
+  | "calculate"
+  | null;
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="flex flex-col gap-1.5">
       <Label>{label}</Label>
       {children}
     </div>
-  )
+  );
 }
 
-function Footer({ onClose, submitLabel }: { onClose: () => void; submitLabel: string }) {
+function Footer({
+  onClose,
+  submitLabel,
+}: {
+  onClose: () => void;
+  submitLabel: string;
+}) {
   return (
     <div className="mt-6 flex justify-end gap-2">
       <Button type="button" variant="outline" size="lg" onClick={onClose}>
@@ -33,43 +53,101 @@ function Footer({ onClose, submitLabel }: { onClose: () => void; submitLabel: st
         {submitLabel}
       </Button>
     </div>
-  )
+  );
 }
 
 export function DashboardModals({
   active,
   onClose,
 }: {
-  active: ModalKey
-  onClose: () => void
+  active: ModalKey;
+  onClose: () => void;
 }) {
   const submit = (e: FormEvent) => {
-    e.preventDefault()
-    onClose()
-  }
+    e.preventDefault();
+    onClose();
+  };
+
+  const submitCourse = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const user = auth.currentUser;
+    if (!user) {
+      alert("Please sign in to add a course.");
+      return;
+    }
+
+    const formData = new FormData(e.currentTarget);
+    try {
+      await addDoc(collection(db, "profiles", user.uid, "courses"), {
+        user_id: user.uid,
+        name: formData.get("name"),
+        code: formData.get("code"),
+        credits: parseInt(formData.get("credits") as string, 10),
+        grade: formData.get("grade"),
+        attendance_percent: 0.0,
+        progress: 0.0,
+        status: "On Track",
+      });
+      onClose();
+    } catch (err: any) {
+      console.error(err);
+      alert("Failed to add course: " + err.message);
+    }
+  };
+
+  const submitAssignment = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const user = auth.currentUser;
+    if (!user) {
+      alert("Please sign in to add an assignment.");
+      return;
+    }
+
+    const formData = new FormData(e.currentTarget);
+    try {
+      await addDoc(collection(db, "profiles", user.uid, "assigments"), {
+        user_id: user.uid,
+        title: formData.get("title"),
+        course: formData.get("course"),
+        due: formData.get("due"),
+        weight: formData.get("weight"),
+      });
+      onClose();
+    } catch (err: any) {
+      console.error(err);
+      alert("Failed to add assignment: " + err.message);
+    }
+  };
 
   return (
     <>
       <Modal
-        open={active === 'course'}
+        open={active === "course"}
         onClose={onClose}
         title="Add Course"
         description="Add a course to your current semester."
       >
-        <form onSubmit={submit} className="flex flex-col gap-4">
+        <form onSubmit={submitCourse} className="flex flex-col gap-4">
           <Field label="Course name">
-            <Input placeholder="e.g. Operating Systems" required />
+            <Input name="name" placeholder="e.g. Operating Systems" required />
           </Field>
           <div className="grid grid-cols-2 gap-4">
             <Field label="Course code">
-              <Input placeholder="ICT 2213" required />
+              <Input name="code" placeholder="ICT 2213" required />
             </Field>
             <Field label="Credit hours">
-              <Input type="number" min={1} max={6} defaultValue={3} required />
+              <Input
+                name="credits"
+                type="number"
+                min={1}
+                max={6}
+                defaultValue={3}
+                required
+              />
             </Field>
           </div>
           <Field label="Expected grade">
-            <Select defaultValue="A">
+            <Select name="grade" defaultValue="A">
               {LETTER_GRADES.map((g) => (
                 <option key={g} value={g}>
                   {g}
@@ -82,32 +160,38 @@ export function DashboardModals({
       </Modal>
 
       <Modal
-        open={active === 'assignment'}
+        open={active === "assignment"}
         onClose={onClose}
         title="Add Assignment"
         description="Track a new assignment deadline."
       >
-        <form onSubmit={submit} className="flex flex-col gap-4">
+        <form onSubmit={submitAssignment} className="flex flex-col gap-4">
           <Field label="Title">
-            <Input placeholder="e.g. Assignment 3" required />
+            <Input name="title" placeholder="e.g. Assignment 3" required />
           </Field>
           <div className="grid grid-cols-2 gap-4">
             <Field label="Course">
-              <Input placeholder="ICT 2203" required />
+              <Input name="course" placeholder="ICT 2203" required />
             </Field>
             <Field label="Due date">
-              <Input type="date" required />
+              <Input name="due" type="date" required />
             </Field>
           </div>
           <Field label="Weight (%)">
-            <Input type="number" min={0} max={100} defaultValue={10} />
+            <Input
+              name="weight"
+              type="number"
+              min={0}
+              max={100}
+              defaultValue={10}
+            />
           </Field>
           <Footer onClose={onClose} submitLabel="Add assignment" />
         </form>
       </Modal>
 
       <Modal
-        open={active === 'exam'}
+        open={active === "exam"}
         onClose={onClose}
         title="Add Exam"
         description="Schedule an upcoming exam."
@@ -136,14 +220,21 @@ export function DashboardModals({
       </Modal>
 
       <Modal
-        open={active === 'target'}
+        open={active === "target"}
         onClose={onClose}
         title="Set GPA Target"
         description="Choose the GPA you're aiming for this program."
       >
         <form onSubmit={submit} className="flex flex-col gap-4">
           <Field label="Target GPA">
-            <Input type="number" min={0} max={4} step={0.01} defaultValue={3.7} required />
+            <Input
+              type="number"
+              min={0}
+              max={4}
+              step={0.01}
+              defaultValue={3.7}
+              required
+            />
           </Field>
           <Field label="Target classification">
             <Select defaultValue="first">
@@ -156,28 +247,37 @@ export function DashboardModals({
         </form>
       </Modal>
 
-      <CalculateModal open={active === 'calculate'} onClose={onClose} />
+      <CalculateModal open={active === "calculate"} onClose={onClose} />
     </>
-  )
+  );
 }
 
-let idCounter = 0
+let idCounter = 0;
 const newRow = (): Course => ({
   id: `calc-${idCounter++}`,
-  name: '',
-  grade: 'A',
-  credits: '3',
-})
+  name: "",
+  grade: "A",
+  credits: "3",
+});
 
-function CalculateModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [rows, setRows] = useState<Course[]>([newRow(), newRow(), newRow()])
+function CalculateModal({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
+  const [rows, setRows] = useState<Course[]>([newRow(), newRow(), newRow()]);
 
   const update = (id: string, patch: Partial<Course>) =>
-    setRows((r) => r.map((row) => (row.id === id ? { ...row, ...patch } : row)))
-  const remove = (id: string) => setRows((r) => r.filter((row) => row.id !== id))
+    setRows((r) =>
+      r.map((row) => (row.id === id ? { ...row, ...patch } : row)),
+    );
+  const remove = (id: string) =>
+    setRows((r) => r.filter((row) => row.id !== id));
 
-  const result = computeGpa(rows, 'letter')
-  const klass = classification(result.gpa)
+  const result = computeGpa(rows, "letter");
+  const klass = classification(result.gpa);
 
   return (
     <Modal
@@ -195,7 +295,10 @@ function CalculateModal({ open, onClose }: { open: boolean; onClose: () => void 
         </div>
         <div className="flex max-h-56 flex-col gap-2 overflow-y-auto pr-1">
           {rows.map((row) => (
-            <div key={row.id} className="grid grid-cols-[1fr_auto_auto] items-center gap-2">
+            <div
+              key={row.id}
+              className="grid grid-cols-[1fr_auto_auto] items-center gap-2"
+            >
               <Select
                 value={row.grade}
                 onChange={(e) => update(row.id, { grade: e.target.value })}
@@ -263,5 +366,5 @@ function CalculateModal({ open, onClose }: { open: boolean; onClose: () => void 
         </div>
       </div>
     </Modal>
-  )
+  );
 }
