@@ -1,37 +1,51 @@
-'use client'
+"use client";
 
-import type * as React from 'react'
-import { useEffect } from 'react'
-import { X } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
+import type * as React from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
+import { X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 type ModalProps = {
-  open: boolean
-  onClose: () => void
-  title: string
-  description?: string
-  children: React.ReactNode
-  className?: string
-}
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  description?: string;
+  children: React.ReactNode;
+  className?: string;
+};
 
-export function Modal({ open, onClose, title, description, children, className }: ModalProps) {
+export function Modal({
+  open,
+  onClose,
+  title,
+  description,
+  children,
+  className,
+}: ModalProps) {
+  const [mounted, setMounted] = useState(false);
+
   useEffect(() => {
-    if (!open) return
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    document.addEventListener('keydown', onKey)
-    document.body.style.overflow = 'hidden'
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
     return () => {
-      document.removeEventListener('keydown', onKey)
-      document.body.style.overflow = ''
-    }
-  }, [open, onClose])
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
+    };
+  }, [open, onClose]);
 
-  if (!open) return null
+  if (!open || !mounted) return null;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
         aria-hidden="true"
@@ -43,7 +57,7 @@ export function Modal({ open, onClose, title, description, children, className }
         aria-modal="true"
         aria-label={title}
         className={cn(
-          'relative z-10 w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl animate-in fade-in zoom-in-95',
+          "relative z-10 w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl animate-in fade-in zoom-in-95 max-h-full overflow-y-auto",
           className,
         )}
       >
@@ -51,7 +65,9 @@ export function Modal({ open, onClose, title, description, children, className }
           <div>
             <h2 className="text-base font-semibold text-foreground">{title}</h2>
             {description ? (
-              <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {description}
+              </p>
             ) : null}
           </div>
           <Button
@@ -65,6 +81,7 @@ export function Modal({ open, onClose, title, description, children, className }
         </div>
         {children}
       </div>
-    </div>
-  )
+    </div>,
+    document.body,
+  );
 }
